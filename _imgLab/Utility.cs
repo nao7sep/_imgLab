@@ -73,7 +73,7 @@ namespace _imgLab
             if (xExifProfile != null && xExifProfile.ThumbnailOffset != 0 && xExifProfile.ThumbnailLength != 0)
             {
                 xExifProfile.RemoveThumbnail ();
-                xImage.SetProfile (xExifProfile);
+                xImage.SetProfile (xExifProfile); // Without this line, the thumbnail will not be removed.
 #if DEBUG
                 Console.WriteLine ("Thumbnail detected.");
                 Console.WriteLine ("Thumbnail removed.");
