@@ -221,109 +221,121 @@ namespace _imgLab
 
         public static string GenerateWatermarkedImageForInstagram (string inputImagePath, string outputDirectoryPath, bool generateWatermarkedPartialImage)
         {
-            using MagickImage xImage = new (inputImagePath);
+            var xInitialThreadPriority = Thread.CurrentThread.Priority;
 
-            xImage.AutoOrient ();
-
-            if (xImage.HasProfile ("icc"))
+            try
             {
-                xImage.TransformColorSpace (ColorProfile.SRGB);
-                xImage.RemoveProfile ("icc");
+                Thread.CurrentThread.Priority = ThreadPriority.BelowNormal;
+
+                using MagickImage xImage = new (inputImagePath);
+
+                xImage.AutoOrient ();
+
+                if (xImage.HasProfile ("icc"))
+                {
+                    xImage.TransformColorSpace (ColorProfile.SRGB);
+                    xImage.RemoveProfile ("icc");
+                }
+
+                else if (xImage.ColorSpace != ColorSpace.sRGB)
+                    xImage.TransformColorSpace (ColorProfile.AdobeRGB1998, ColorProfile.SRGB);
+
+                var xExifProfile = xImage.GetExifProfile ();
+
+                if (xExifProfile != null && xExifProfile.ThumbnailOffset != 0 && xExifProfile.ThumbnailLength != 0)
+                {
+                    xExifProfile.RemoveThumbnail ();
+                    xImage.SetProfile (xExifProfile);
+                }
+
+                xImage.Strip ();
+
+                // -----------------------------------------------------------------------------
+                // Instagram-ish Optimization
+                // -----------------------------------------------------------------------------
+
+                xImage.LinearStretch (blackPoint: new Percentage (0), whitePoint: new Percentage (0.05));
+                xImage.Modulate (brightness: new Percentage (100), saturation: new Percentage (115), hue: new Percentage (100));
+                xImage.AdaptiveSharpen (radius: 0, sigma: 1);
+
+                // -----------------------------------------------------------------------------
+                // Metrics
+                // -----------------------------------------------------------------------------
+
+                double xFontPointSize = 25.0 * Math.Max (xImage.Width, xImage.Height) / 1080;
+
+                using var xDummyImage = new MagickImage (MagickColors.Transparent, width: 1, height: 1);
+                xDummyImage.Settings.Font = "Merriweather";
+                xDummyImage.Settings.FontPointsize = xFontPointSize; // Not a typo.
+
+                var xMetrics = xDummyImage.FontTypeMetrics ("@nao7sep") ?? throw new NullReferenceException ("Metrics are null.");
+
+                // -----------------------------------------------------------------------------
+                // Average Luminance
+                // -----------------------------------------------------------------------------
+
+                double xOffsetX = (double) xImage.Width * 1 / 4,
+                    xOffsetY = (double) xImage.Height * 4 / 5;
+
+                MagickGeometry xGeometry = new (
+                    (int) Math.Round (xOffsetX - xMetrics.TextWidth / 2),
+                    (int) Math.Round (xOffsetY - xMetrics.Ascent),
+                    (uint) Math.Round (xMetrics.TextWidth),
+                    (uint) Math.Round (xMetrics.TextHeight));
+
+                using var xPartialImage = xImage.CloneArea (xGeometry);
+                using var xPixels = xPartialImage.GetPixels ();
+
+                double xAverageLuminance = Enumerable.Range (0, (int) xPartialImage.Width).
+                    SelectMany (x => Enumerable.Range (0, (int) xPartialImage.Height).
+                    Select (y => xPixels.GetPixel (x, y))).
+                    Select (pixel =>
+                {
+                    double xRed = (double) pixel.GetChannel ((int) PixelChannel.Red) / Quantum.Max,
+                        xGreen = (double) pixel.GetChannel ((int) PixelChannel.Green) / Quantum.Max,
+                        xBlue = (double) pixel.GetChannel ((int) PixelChannel.Blue) / Quantum.Max,
+                        xLuminance = 0.2126 * xRed + 0.7152 * xGreen + 0.0722 * xBlue;
+
+                    return xLuminance;
+                }).
+                Average ();
+
+                // -----------------------------------------------------------------------------
+                // Watermark
+                // -----------------------------------------------------------------------------
+
+                var xDrawables = new Drawables ().
+                    // https://fonts.google.com/specimen/Merriweather
+                    Font ("Merriweather").
+                    FontPointSize (xFontPointSize).
+                    FillColor (xAverageLuminance >= 0.5 ? MagickColors.Black : MagickColors.White).
+                    FillOpacity (new Percentage (50)). // 25% is a little too faint.
+                    TextAlignment (TextAlignment.Center).
+                    // https://www.instagram.com/nao7sep/
+                    Text (xOffsetX, xOffsetY, "@nao7sep");
+
+                xDrawables.Draw (xImage);
+
+                string xOutputImagePath = Path.Join (outputDirectoryPath, $"{Path.GetFileNameWithoutExtension(inputImagePath)}-Watermarked.jpg");
+
+                Directory.CreateDirectory (outputDirectoryPath);
+                xImage.Quality = 85; // Between 75 and 95.
+                xImage.Write (xOutputImagePath, MagickFormat.Jpeg);
+
+                if (generateWatermarkedPartialImage)
+                {
+                    using var xWatermarkedPartialImage = xImage.CloneArea (xGeometry);
+                    xWatermarkedPartialImage.Quality = 75; // Standard quality.
+                    xWatermarkedPartialImage.Write (Path.Join (outputDirectoryPath, $"{Path.GetFileNameWithoutExtension(inputImagePath)}-Partial.jpg"), MagickFormat.Jpeg);
+                }
+
+                return xOutputImagePath;
             }
 
-            else if (xImage.ColorSpace != ColorSpace.sRGB)
-                xImage.TransformColorSpace (ColorProfile.AdobeRGB1998, ColorProfile.SRGB);
-
-            var xExifProfile = xImage.GetExifProfile ();
-
-            if (xExifProfile != null && xExifProfile.ThumbnailOffset != 0 && xExifProfile.ThumbnailLength != 0)
+            finally
             {
-                xExifProfile.RemoveThumbnail ();
-                xImage.SetProfile (xExifProfile);
+                Thread.CurrentThread.Priority = xInitialThreadPriority;
             }
-
-            xImage.Strip ();
-
-            // -----------------------------------------------------------------------------
-            // Instagram-ish Optimization
-            // -----------------------------------------------------------------------------
-
-            xImage.LinearStretch (blackPoint: new Percentage (0), whitePoint: new Percentage (0.05));
-            xImage.Modulate (brightness: new Percentage (100), saturation: new Percentage (115), hue: new Percentage (100));
-            xImage.AdaptiveSharpen (radius: 0, sigma: 1);
-
-            // -----------------------------------------------------------------------------
-            // Metrics
-            // -----------------------------------------------------------------------------
-
-            double xFontPointSize = 25.0 * Math.Max (xImage.Width, xImage.Height) / 1080;
-
-            using var xDummyImage = new MagickImage (MagickColors.Transparent, width: 1, height: 1);
-            xDummyImage.Settings.Font = "Merriweather";
-            xDummyImage.Settings.FontPointsize = xFontPointSize; // Not a typo.
-
-            var xMetrics = xDummyImage.FontTypeMetrics ("@nao7sep") ?? throw new NullReferenceException ("Metrics are null.");
-
-            // -----------------------------------------------------------------------------
-            // Average Luminance
-            // -----------------------------------------------------------------------------
-
-            double xOffsetX = (double) xImage.Width * 1 / 4,
-                   xOffsetY = (double) xImage.Height * 4 / 5;
-
-            MagickGeometry xGeometry = new (
-                (int) Math.Round (xOffsetX - xMetrics.TextWidth / 2),
-                (int) Math.Round (xOffsetY - xMetrics.Ascent),
-                (uint) Math.Round (xMetrics.TextWidth),
-                (uint) Math.Round (xMetrics.TextHeight));
-
-            using var xPartialImage = xImage.CloneArea (xGeometry);
-            using var xPixels = xPartialImage.GetPixels ();
-
-            double xAverageLuminance = Enumerable.Range (0, (int) xPartialImage.Width).
-                SelectMany (x => Enumerable.Range (0, (int) xPartialImage.Height).
-                Select (y => xPixels.GetPixel (x, y))).
-                Select (pixel =>
-            {
-                double xRed = (double) pixel.GetChannel ((int) PixelChannel.Red) / Quantum.Max,
-                       xGreen = (double) pixel.GetChannel ((int) PixelChannel.Green) / Quantum.Max,
-                       xBlue = (double) pixel.GetChannel ((int) PixelChannel.Blue) / Quantum.Max,
-                       xLuminance = 0.2126 * xRed + 0.7152 * xGreen + 0.0722 * xBlue;
-
-                return xLuminance;
-            }).
-            Average ();
-
-            // -----------------------------------------------------------------------------
-            // Watermark
-            // -----------------------------------------------------------------------------
-
-            var xDrawables = new Drawables ().
-                // https://fonts.google.com/specimen/Merriweather
-                Font ("Merriweather").
-                FontPointSize (xFontPointSize).
-                FillColor (xAverageLuminance >= 0.5 ? MagickColors.Black : MagickColors.White).
-                FillOpacity (new Percentage (50)). // 25% is a little too faint.
-                TextAlignment (TextAlignment.Center).
-                // https://www.instagram.com/nao7sep/
-                Text (xOffsetX, xOffsetY, "@nao7sep");
-
-            xDrawables.Draw (xImage);
-
-            string xOutputImagePath = Path.Join (outputDirectoryPath, $"{Path.GetFileNameWithoutExtension(inputImagePath)}-Watermarked.jpg");
-
-            Directory.CreateDirectory (outputDirectoryPath);
-            xImage.Quality = 85; // Between 75 and 95.
-            xImage.Write (xOutputImagePath, MagickFormat.Jpeg);
-
-            if (generateWatermarkedPartialImage)
-            {
-                using var xWatermarkedPartialImage = xImage.CloneArea (xGeometry);
-                xWatermarkedPartialImage.Quality = 75; // Standard quality.
-                xWatermarkedPartialImage.Write (Path.Join (outputDirectoryPath, $"{Path.GetFileNameWithoutExtension(inputImagePath)}-Partial.jpg"), MagickFormat.Jpeg);
-            }
-
-            return xOutputImagePath;
         }
     }
 }
