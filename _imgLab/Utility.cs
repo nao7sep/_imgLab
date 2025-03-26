@@ -245,6 +245,14 @@ namespace _imgLab
             xImage.Strip ();
 
             // -----------------------------------------------------------------------------
+            // Instagram-ish Optimization
+            // -----------------------------------------------------------------------------
+
+            xImage.LinearStretch (blackPoint: new Percentage (0), whitePoint: new Percentage (0.05));
+            xImage.Modulate (brightness: new Percentage (100), saturation: new Percentage (115), hue: new Percentage (100));
+            xImage.AdaptiveSharpen (radius: 0, sigma: 1);
+
+            // -----------------------------------------------------------------------------
             // Metrics
             // -----------------------------------------------------------------------------
 
@@ -309,9 +317,10 @@ namespace _imgLab
             xImage.Quality = 85; // Between 75 and 95.
             xImage.Write (xOutputImagePath, MagickFormat.Jpeg);
 #if DEBUG
-            using var xWatermarkedPartialImage = xImage.CloneArea (xGeometry);
-            xWatermarkedPartialImage.Quality = 75; // Standard quality.
-            xWatermarkedPartialImage.Write (Path.Join (outputDirectoryPath, $"{Path.GetFileNameWithoutExtension(inputImagePath)}-Partial.jpg"), MagickFormat.Jpeg);
+            // Well-tested.
+            // using var xWatermarkedPartialImage = xImage.CloneArea (xGeometry);
+            // xWatermarkedPartialImage.Quality = 75; // Standard quality.
+            // xWatermarkedPartialImage.Write (Path.Join (outputDirectoryPath, $"{Path.GetFileNameWithoutExtension(inputImagePath)}-Partial.jpg"), MagickFormat.Jpeg);
 #endif
             return xOutputImagePath;
         }
