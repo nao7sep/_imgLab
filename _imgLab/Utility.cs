@@ -252,12 +252,26 @@ namespace _imgLab
                 xImage.Strip ();
 
                 // -----------------------------------------------------------------------------
-                // Instagram-ish Optimization
+                // Optimization
                 // -----------------------------------------------------------------------------
 
-                xImage.LinearStretch (blackPoint: new Percentage (0), whitePoint: new Percentage (0.05));
+                // LinearStretch(blackPoint: 0%, whitePoint: 2%)
+                //   blackPoint = 0% => Preserves all shadow detail by avoiding dark-area clipping.
+                //   whitePoint = 2% => Slightly clips the brightest highlights, enhancing contrast and making the image “pop” without destroying vital detail.
+                xImage.LinearStretch (blackPoint: new Percentage (0), whitePoint: new Percentage (2));
+
+                // Modulate(brightness: 100%, saturation: 115%, hue: 100%)
+                //   brightness = 100% => Leaves overall luminance unchanged.
+                //   saturation = 115% => Increases color vibrancy by 15%, giving photos a more vivid look without risking over-saturation.
+                //   hue = 100% => Retains original color tones (no hue shift).
                 xImage.Modulate (brightness: new Percentage (100), saturation: new Percentage (115), hue: new Percentage (100));
-                xImage.AdaptiveSharpen (radius: 0, sigma: 1);
+
+                // UnsharpMask(radius: 0, sigma: 1, amount: 1, threshold: 0.02)
+                //   radius = 0 => Lets the library determine an optimal blur radius automatically.
+                //   sigma = 1 => Provides a moderate blur for the unsharp mask, enhancing edges without creating harsh halos.
+                //   amount = 1 => Specifies a 1:1 ratio for the difference from the blurred version, controlling sharpening intensity.
+                //   threshold = 0.02 => Ignores very low-contrast edges or noise, preventing over-sharpening in smooth areas like skies or skin.
+                xImage.UnsharpMask (radius: 0, sigma: 1, amount: 1, threshold: 0.02);
 
                 // -----------------------------------------------------------------------------
                 // Metrics
