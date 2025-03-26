@@ -219,7 +219,7 @@ namespace _imgLab
             return xOutputImagePath;
         }
 
-        public static string GenerateWatermarkedImageForInstagram (string inputImagePath, string outputDirectoryPath)
+        public static string GenerateWatermarkedImageForInstagram (string inputImagePath, string outputDirectoryPath, bool generateWatermarkedPartialImage)
         {
             using MagickImage xImage = new (inputImagePath);
 
@@ -256,8 +256,7 @@ namespace _imgLab
             // Metrics
             // -----------------------------------------------------------------------------
 
-            double xAverageOfWidthAndHeight = ((double) xImage.Width + xImage.Height) / 2,
-                   xFontPointSize = 25 * xAverageOfWidthAndHeight / 1080;
+            double xFontPointSize = 25.0 * Math.Max (xImage.Width, xImage.Height) / 1080;
 
             using var xDummyImage = new MagickImage (MagickColors.Transparent, width: 1, height: 1);
             xDummyImage.Settings.Font = "Merriweather";
@@ -316,12 +315,14 @@ namespace _imgLab
             Directory.CreateDirectory (outputDirectoryPath);
             xImage.Quality = 85; // Between 75 and 95.
             xImage.Write (xOutputImagePath, MagickFormat.Jpeg);
-#if DEBUG
-            // Well-tested.
-            // using var xWatermarkedPartialImage = xImage.CloneArea (xGeometry);
-            // xWatermarkedPartialImage.Quality = 75; // Standard quality.
-            // xWatermarkedPartialImage.Write (Path.Join (outputDirectoryPath, $"{Path.GetFileNameWithoutExtension(inputImagePath)}-Partial.jpg"), MagickFormat.Jpeg);
-#endif
+
+            if (generateWatermarkedPartialImage)
+            {
+                using var xWatermarkedPartialImage = xImage.CloneArea (xGeometry);
+                xWatermarkedPartialImage.Quality = 75; // Standard quality.
+                xWatermarkedPartialImage.Write (Path.Join (outputDirectoryPath, $"{Path.GetFileNameWithoutExtension(inputImagePath)}-Partial.jpg"), MagickFormat.Jpeg);
+            }
+
             return xOutputImagePath;
         }
     }

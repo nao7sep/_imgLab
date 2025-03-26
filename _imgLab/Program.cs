@@ -10,13 +10,13 @@
 
                 foreach (string xInputImagePath in args)
                 {
-                    // var xResults = Utility.CompareJpegQualityLevelsAndFileLengths (xInputImagePath, xOutputDirectoryPath, Utility.QualityLevels);
-                    // Utility.PrintJpegQualityLevelAndFileLengthComparisonResults (xInputImagePath, xResults);
+                    var xResults = Utility.CompareJpegQualityLevelsAndFileLengths (xInputImagePath, xOutputDirectoryPath, Utility.QualityLevels);
+                    Utility.PrintJpegQualityLevelAndFileLengthComparisonResults (xInputImagePath, xResults);
 
-                    // string xSquareImagePath = Utility.GenerateSquareImageForInstagram (xInputImagePath, xOutputDirectoryPath, 1080);
-                    // Console.WriteLine ($"Square image for Instagram created: {Path.GetFileName (xSquareImagePath)}");
+                    string xSquareImagePath = Utility.GenerateSquareImageForInstagram (xInputImagePath, xOutputDirectoryPath, 1080);
+                    Console.WriteLine ($"Square image for Instagram created: {Path.GetFileName (xSquareImagePath)}");
 
-                    string xWatermarkedImagePath = Utility.GenerateWatermarkedImageForInstagram (xInputImagePath, xOutputDirectoryPath);
+                    string xWatermarkedImagePath = Utility.GenerateWatermarkedImageForInstagram (xInputImagePath, xOutputDirectoryPath, true);
                     Console.WriteLine ($"Watermarked image for Instagram created: {Path.GetFileName (xWatermarkedImagePath)}");
                 }
             }
