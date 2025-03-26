@@ -87,12 +87,12 @@ namespace _imgLab
 
             foreach (int xQualityLevel in qualityLevels)
             {
-                string xOutputImagePath = Path.Join (outputDirectoryPath, $"{Path.GetFileNameWithoutExtension(inputImagePath)}-{xQualityLevel}.jpg");
+                string xOutputImagePath = Path.Join (outputDirectoryPath, $"{Path.GetFileNameWithoutExtension (inputImagePath)}-{xQualityLevel}.jpg");
 
                 xImage.Quality = (uint) xQualityLevel;
                 xImage.Write (xOutputImagePath, MagickFormat.Jpeg);
 
-                long xFileLength = new FileInfo(xOutputImagePath).Length;
+                long xFileLength = new FileInfo (xOutputImagePath).Length;
                 string xFileLengthFriendlyString = FileLengthToFriendlyString (xFileLength);
                 xResults.Add ((xQualityLevel, xOutputImagePath, xFileLength, xFileLengthFriendlyString));
             }
@@ -210,7 +210,7 @@ namespace _imgLab
 
             xDrawables.Draw (xBackgroundImage);
 
-            string xOutputImagePath = Path.Join (outputDirectoryPath, $"{Path.GetFileNameWithoutExtension(inputImagePath)}-Square.jpg");
+            string xOutputImagePath = Path.Join (outputDirectoryPath, $"{Path.GetFileNameWithoutExtension (inputImagePath)}-Square.jpg");
 
             Directory.CreateDirectory (outputDirectoryPath);
             xBackgroundImage.Quality = 85; // Between 75 and 95.
@@ -219,7 +219,8 @@ namespace _imgLab
             return xOutputImagePath;
         }
 
-        public static string GenerateWatermarkedImageForInstagram (string inputImagePath, string outputDirectoryPath, bool generateWatermarkedPartialImage)
+        public static (string WatermarkedImagePath, string? WatermarkedPartialImagePath) GenerateWatermarkedImageForInstagram (
+            string inputImagePath, string outputDirectoryPath, bool generateWatermarkedPartialImage)
         {
             var xInitialThreadPriority = Thread.CurrentThread.Priority;
 
@@ -316,20 +317,24 @@ namespace _imgLab
 
                 xDrawables.Draw (xImage);
 
-                string xOutputImagePath = Path.Join (outputDirectoryPath, $"{Path.GetFileNameWithoutExtension(inputImagePath)}-Watermarked.jpg");
+                string xWatermarkedImagePath = Path.Join (outputDirectoryPath, $"{Path.GetFileNameWithoutExtension (inputImagePath)}-Watermarked.jpg");
 
                 Directory.CreateDirectory (outputDirectoryPath);
                 xImage.Quality = 85; // Between 75 and 95.
-                xImage.Write (xOutputImagePath, MagickFormat.Jpeg);
+                xImage.Write (xWatermarkedImagePath, MagickFormat.Jpeg);
 
                 if (generateWatermarkedPartialImage)
                 {
                     using var xWatermarkedPartialImage = xImage.CloneArea (xGeometry);
+
                     xWatermarkedPartialImage.Quality = 75; // Standard quality.
-                    xWatermarkedPartialImage.Write (Path.Join (outputDirectoryPath, $"{Path.GetFileNameWithoutExtension(inputImagePath)}-Partial.jpg"), MagickFormat.Jpeg);
+                    string xWatermarkedPartialImagePath = Path.Join (outputDirectoryPath, $"{Path.GetFileNameWithoutExtension (inputImagePath)}-Partial.jpg");
+                    xWatermarkedPartialImage.Write (xWatermarkedPartialImagePath, MagickFormat.Jpeg);
+
+                    return (xWatermarkedImagePath, xWatermarkedPartialImagePath);
                 }
 
-                return xOutputImagePath;
+                return (xWatermarkedImagePath, null);
             }
 
             finally
