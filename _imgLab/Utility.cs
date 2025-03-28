@@ -278,7 +278,17 @@ namespace _imgLab
                 //   amount = 1 => Specifies a 1:1 ratio for the difference from the blurred version, controlling sharpening intensity.
                 //   threshold = 0.02 => Ignores very low-contrast edges or noise, preventing over-sharpening in smooth areas like skies or skin.
 
-                xImage.UnsharpMask (radius: 0, sigma: 1, amount: 1, threshold: 0.02);
+                // xImage.UnsharpMask (radius: 0, sigma: 1, amount: 1, threshold: 0.02);
+
+                // AdaptiveSharpen(radius: 0, sigma: 1)
+                //   radius = 0 => Tells the library to select an optimal blur radius automatically.
+                //   sigma = 1 => Uses a moderate Gaussian standard deviation, striking a balance
+                //                between enhancing detail and minimizing artifacts.
+                //   Unlike a standard sharpen, adaptive sharpening applies varying amounts of
+                //   sharpening based on local image characteristics, helping to preserve smoother
+                //   areas (like skies or skin) while more aggressively enhancing detailed areas.
+
+                xImage.AdaptiveSharpen (radius: 0, sigma: 1);
 
                 // -----------------------------------------------------------------------------
                 // Metrics
